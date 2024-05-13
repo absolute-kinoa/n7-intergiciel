@@ -21,37 +21,39 @@ public class Channel<T> implements go.Channel<T> {
         // TODO
         this.name = name;
     }
-    
+
+
     public void out(T v) {
-        // TODO
         System.out.println("OUT: Starting out with value "+ v.toString() + " to list.");
         lock.lock();
-//        try{
-//            System.out.println("OUT: Waiting for a in method");
-//            waitingValue.await();
-//        }catch(InterruptedException e){
-//            e.printStackTrace();
-//        }
-        listValues.add(v);
-        System.out.println("OUT: Signaling NOTEMPTY");
-        notEmpty.signalAll();
-        lock.unlock();
-    }
-    
-    public T in() {
-        // TODO
-        System.out.println("IN: Retrieving value");
-        lock.lock();
-        System.out.println("IN: Signaling WAITINGVALUE");
-        waitingValue.signalAll();
         try {
-            System.out.println("IN: Waiting for value");
-            notEmpty.await();
+            System.out.println("OUT: Adding value "+ v.toString() + " to list.");
+
+            listValues.add(v);
+            System.out.println("OUT: Signaling NOTEMPTY");
+            notEmpty.signal();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public T in() {
+        lock.lock();
+        System.out.println("IN: Retrieving value");
+
+        try {
+            while (listValues.isEmpty()) {
+                System.out.println("IN:  WAITINGVALUE");
+                notEmpty.await();
+            }
+            System.out.println("IN:  Removing value");
+            return listValues.remove();
         } catch (InterruptedException e) {
             e.printStackTrace();
+            return null;
+        } finally {
+            lock.unlock();
         }
-        System.out.println("IN: Returning value");
-        return listValues.remove();
     }
 
     public String getName() {
@@ -62,5 +64,5 @@ public class Channel<T> implements go.Channel<T> {
     public void observe(Direction dir, Observer observer) {
         // TODO
     }
-        
+
 }
