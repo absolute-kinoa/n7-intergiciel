@@ -15,11 +15,13 @@ public class TestShm01 {
         Factory factory = new go.shm.Factory();
         Channel<Integer> c = factory.newChannel("c");
 
+        System.out.println("Name of factory: "+c.getName());
+
         new Thread(() -> {
                 try { Thread.sleep(2000);  } catch (InterruptedException e) { }
                 quit("KO (deadlock)");
         }).start();
-        
+
         new Thread(() -> {
                 try { Thread.sleep(100);  } catch (InterruptedException e) { }
                 c.out(4);
