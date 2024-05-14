@@ -7,7 +7,6 @@ import go.Observer;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -15,7 +14,6 @@ import java.util.concurrent.locks.ReentrantLock;
 public class Selector implements go.Selector {
 
     // Attributs pour la concurrence
-    private boolean usedValue = true;
     static final Lock lock = new ReentrantLock();
     static final Condition ChanIsAvailable = lock.newCondition();
     private static boolean ChanAvailable = false;
@@ -63,15 +61,15 @@ public class Selector implements go.Selector {
 
 
     public Selector(Map<Channel, Direction> channels) {
-        this.channels = (HashMap<Channel, Direction>) channels;
+        this.channels = new HashMap<>(channels);
         Direction dir;
         for (Channel chan : channels.keySet()) {
             dir = Direction.inverse(channels.get(chan));
             System.out.println("Clé : " + chan + ", Valeur : " + dir);
-            if (dir== Direction.In){
-                chan.observe(dir,new ObservationInTest(chan));
-            }else{
-                chan.observe(dir,new ObservationOutTest(chan));
+            if (dir == Direction.In){
+                chan.observe(dir, new ObservationInTest(chan));
+            } else {
+                chan.observe(dir, new ObservationOutTest(chan));
             }
         }
     }
