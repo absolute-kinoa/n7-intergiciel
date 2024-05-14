@@ -46,11 +46,11 @@ public class Channel<T> implements go.Channel<T> {
             }
             while(!usedValue)
                 waitingValue.await();
+            usedValue=false;
             System.out.println("OUT: Adding value "+ v.toString() + " to list.");
             listValues.add(v);
             System.out.println("OUT: Signaling NOTEMPTY");
             notEmpty.signal();
-            usedValue=false;
         } catch(Exception e){
             e.printStackTrace();
         }
@@ -77,8 +77,7 @@ public class Channel<T> implements go.Channel<T> {
             while (usedValue)
                 notEmpty.await();
             waitingValue.signal();
-            System.out.println("IN:  WAITINGVALUE");
-            System.out.println("IN:  Removing value");
+            System.out.println("IN:  Removing value.");
             usedValue=true;
             return listValues.remove();
         } catch (InterruptedException e) {
