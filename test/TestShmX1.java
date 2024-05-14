@@ -6,6 +6,7 @@ import go.Observer;
 import go.Direction;
 
 /** Un unique in/out, commençant par in */
+// On ajoute des observateurs au test 01.
 public class TestShmX1 {
 
     static class ObservationInTest implements Observer {
