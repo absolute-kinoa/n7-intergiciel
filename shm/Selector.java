@@ -7,7 +7,6 @@ import go.Observer;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -15,7 +14,6 @@ import java.util.concurrent.locks.ReentrantLock;
 public class Selector implements go.Selector {
 
     // Attributs pour la concurrence
-    private boolean usedValue = true;
     static final Lock lock = new ReentrantLock();
     static final Condition ChanIsAvailable = lock.newCondition();
     private static boolean ChanAvailable = false;
