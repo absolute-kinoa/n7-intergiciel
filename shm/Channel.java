@@ -12,12 +12,16 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class Channel<T> implements go.Channel<T> {
 
-    private boolean usedValue = true;
+    final String name;
     LinkedList<T> listValues = new LinkedList<T>();
+
+    // Attributs pour la concurrence
+    private boolean usedValue = true;
     final Lock lock = new ReentrantLock();
     final Condition notEmpty = lock.newCondition();
     final Condition waitingValue = lock.newCondition();
-    final String name;
+
+    // Liste d'observateurs
     private ArrayList<Observer> observersIn = new ArrayList<>();
     private ArrayList<Observer> observersOut = new ArrayList<>();
 
@@ -34,7 +38,7 @@ public class Channel<T> implements go.Channel<T> {
             if (!observersOut.isEmpty()){
                 Iterator<Observer> iterator = observersOut.iterator();
                 // Iterate through the ArrayList and remove each item
-                while (iterator.hasNext()) {
+                if (iterator.hasNext()) {
                     Observer obs = iterator.next();
                     obs.update();
                     iterator.remove();
@@ -62,7 +66,7 @@ public class Channel<T> implements go.Channel<T> {
             if (!observersIn.isEmpty()){
                 Iterator<Observer> iterator = observersIn.iterator();
                 // Iterate through the ArrayList and remove each item
-                while (iterator.hasNext()) {
+                if (iterator.hasNext()) {
                     Observer obs = iterator.next();
                     obs.update();
                     iterator.remove();
@@ -72,7 +76,7 @@ public class Channel<T> implements go.Channel<T> {
             System.out.println("IN: Retrieving value");
             while (usedValue)
                 notEmpty.await();
-            waitingValue.signalAll();
+            waitingValue.signal();
             System.out.println("IN:  WAITINGVALUE");
             System.out.println("IN:  Removing value");
             usedValue=true;
