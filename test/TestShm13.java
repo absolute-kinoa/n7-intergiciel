@@ -25,7 +25,7 @@ public class TestShm13 {
                 try { Thread.sleep(2000);  } catch (InterruptedException e) { }
                 quit("KO (deadlock)");
         }).start();
-        
+
         new Thread(() -> {
                 int v = c1.in();
                 if (v != 4) quit("KO");
