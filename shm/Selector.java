@@ -23,13 +23,13 @@ public class Selector implements go.Selector {
     // Channels that are available
     static LinkedList<Channel> availableChannels = new LinkedList<>();
 
-    static class ObservationInTest implements Observer {
-
+    static class Observateur implements Observer {
         Channel itsChan;
 
-        public ObservationInTest(Channel c){
+        public Observateur(Channel c){
             itsChan = c;
         }
+
         public void update() {
             lock.lock();
             System.out.println("> OBS: Un in() est là");
@@ -40,37 +40,14 @@ public class Selector implements go.Selector {
             lock.unlock();
         }
     }
-    static class ObservationOutTest implements Observer {
-        Channel itsChan;
-
-        public ObservationOutTest(Channel c){
-            itsChan = c;
-        }
-
-        public void update() {
-            lock.lock();
-            System.out.println("> OBS: Un out() est là");
-            availableChannels.add(itsChan);
-            ChanAvailable = true;
-            System.out.println("> OBS: ADDING " + itsChan.getName() + " to available list.");
-            ChanIsAvailable.signal();
-            lock.unlock();
-
-        }
-    }
-
 
     public Selector(Map<Channel, Direction> channels) {
         this.channels = new HashMap<>(channels);
         Direction dir;
         for (Channel chan : channels.keySet()) {
             dir = Direction.inverse(channels.get(chan));
-            System.out.println("Clé : " + chan + ", Valeur : " + dir);
-            if (dir == Direction.In){
-                chan.observe(dir, new ObservationInTest(chan));
-            } else {
-                chan.observe(dir, new ObservationOutTest(chan));
-            }
+            System.out.println("Clé : " + chan.getName() + " attend Valeur : " + Direction.inverse(dir));
+                chan.observe(dir, new Observateur(chan));
         }
     }
 
@@ -82,6 +59,8 @@ public class Selector implements go.Selector {
                 ChanIsAvailable.await();
             ChanAvailable = false;
             Channel chan = availableChannels.remove();
+            Direction dir = Direction.inverse(channels.get(chan));
+            chan.observe(dir, new Observateur(chan));
             System.out.println("> SELECTOR: CHAN " + chan.getName() + " IS AVAILABLE !!");
             return chan;
         } catch (InterruptedException e) {
