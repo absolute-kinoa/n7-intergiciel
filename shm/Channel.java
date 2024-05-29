@@ -13,48 +13,38 @@ import java.util.concurrent.locks.ReentrantLock;
 public class Channel<T> implements go.Channel<T> {
 
     final String name;
-    LinkedList<T> listValues = new LinkedList<T>();
+    LinkedList<T> listValues = new LinkedList<>();
 
-    // Attributs pour la concurrence
+    // Attributes for concurrency
     private boolean usedValue = true;
     final Lock lock = new ReentrantLock();
     final Condition notEmpty = lock.newCondition();
     final Condition waitingValue = lock.newCondition();
 
-    // Liste d'observateurs
-    private ArrayList<Observer> observersIn = new ArrayList<>();
-    private ArrayList<Observer> observersOut = new ArrayList<>();
+    // List of observers
+    private final ArrayList<Observer> observersIn = new ArrayList<>();
+    private final ArrayList<Observer> observersOut = new ArrayList<>();
 
     public Channel(String name) {
-        // TODO
         this.name = name;
     }
 
     public void out(T v) {
         lock.lock();
-        System.out.println("OUT: Starting out with value "+ v.toString() + " to list.");
         try {
-            // TODO: Appel Callback -> prevenir operation OUT
-            if (!observersOut.isEmpty()){
-                Iterator<Observer> iterator = observersOut.iterator();
-                // Iterate through the ArrayList and remove each item
-                if (iterator.hasNext()) {
-                    Observer obs = iterator.next();
-                    obs.update();
-                    iterator.remove();
-                }
-            }
-            while(!usedValue)
+            // Notify OUT observers
+            notifyObservers(observersOut);
+
+            while (!usedValue) {
                 waitingValue.await();
-            usedValue=false;
-            System.out.println("OUT: Adding value "+ v.toString() + " to list.");
+            }
+
+            usedValue = false;
             listValues.add(v);
-            System.out.println("OUT: Signaling NOTEMPTY");
             notEmpty.signal();
-        } catch(Exception e){
+        } catch (InterruptedException e) {
             e.printStackTrace();
-        }
-        finally {
+        } finally {
             lock.unlock();
         }
     }
@@ -62,24 +52,17 @@ public class Channel<T> implements go.Channel<T> {
     public T in() {
         lock.lock();
         try {
-            // TODO: Appel Callback -> prevenir operation IN
-            if (!observersIn.isEmpty()){
-                Iterator<Observer> iterator = observersIn.iterator();
-                // Iterate through the ArrayList and remove each item
-                if (iterator.hasNext()) {
-                    Observer obs = iterator.next();
-                    obs.update();
-                    iterator.remove();
-                }
+            // Notify IN observers
+            notifyObservers(observersIn);
+
+            while (usedValue) {
+                notEmpty.await();
             }
 
-            System.out.println("IN: Retrieving value");
-            while (usedValue)
-                notEmpty.await();
+            T value = listValues.remove();
+            usedValue = true;
             waitingValue.signal();
-            System.out.println("IN:  Removing value.");
-            usedValue=true;
-            return listValues.remove();
+            return value;
         } catch (InterruptedException e) {
             e.printStackTrace();
             return null;
@@ -88,19 +71,24 @@ public class Channel<T> implements go.Channel<T> {
         }
     }
 
+    private void notifyObservers(ArrayList<Observer> observers) {
+        Iterator<Observer> iterator = observers.iterator();
+        while (iterator.hasNext()) {
+            Observer observer = iterator.next();
+            observer.update();
+            iterator.remove();
+        }
+    }
+
     public String getName() {
-        // TODO
         return name;
     }
 
     public void observe(Direction dir, Observer observer) {
-        // TODO
-//        System.out.println("adding observer in" + dir.toString());
-        if (dir == Direction.In){
+        if (dir == Direction.In) {
             observersIn.add(observer);
-        }else{
+        } else {
             observersOut.add(observer);
         }
     }
-
 }
