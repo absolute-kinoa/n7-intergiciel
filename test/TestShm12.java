@@ -5,7 +5,7 @@ import go.Direction;
 import go.Factory;
 import go.Selector;
 
-/* select out */
+/* Test 12 : Select out */
 public class TestShm12 {
 
     private static void quit(String msg) {
