@@ -1,33 +1,18 @@
 package go.cs;
 
-import java.rmi.Naming;
-import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
-import go.cs.*;
-
-/**
- * Implantation d'un serveur hébergeant des canaux.
- *
- */
 public class ServerImpl {
-
-    public static void main(String args[]) throws Exception {
-        Registry dns;
-
+    public static void main(String[] args) {
         try {
-            dns = LocateRegistry.createRegistry(1100);
-        } catch (java.rmi.server.ExportException e) {
-            System.out.println("A registry is already running, proceeding...");
-            dns = LocateRegistry.getRegistry("localhost",1100);
+            Factory factory = new Factory();
+            RemoteFactory remoteFactory = new RemoteFactory(factory);
+            Registry registry = LocateRegistry.createRegistry(Registry.REGISTRY_PORT);
+            registry.rebind("Factory", remoteFactory);
+            System.out.println("Server is ready.");
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-        // Creation de l'objet Directory
-        go.cs.Directory dir = new DirectoryImpl();
-        Naming.rebind("rmi://localhost:1099/directory", dir);
-
-        System.out.println ("Le systeme est pret.");
     }
-
 }

@@ -3,50 +3,92 @@ package go.cs;
 import go.Direction;
 import go.Observer;
 
-import java.rmi.Remote;
-import java.rmi.RemoteException;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Channel<T> implements go.Channel<T> {
 
-    private String name;
-    private RemoteChannel<T> rChan;
+    final String name;
+    LinkedList<T> listValues = new LinkedList<>();
 
-    public Channel(String name) throws RemoteException {
+    // Attributes for concurrency
+    private boolean usedValue = true;
+    final Lock lock = new ReentrantLock();
+    final Condition notEmpty = lock.newCondition();
+    final Condition waitingValue = lock.newCondition();
+
+    // List of observers
+    private final ArrayList<Observer> observersIn = new ArrayList<>();
+    private final ArrayList<Observer> observersOut = new ArrayList<>();
+
+    public Channel(String name) {
         this.name = name;
     }
 
-    public void addRC(RemoteChannel rc){
-        this.rChan = rc;
+    public void out(T v) {
+        lock.lock();
+        try {
+            // Notify OUT observers
+            notifyObservers(observersOut);
+
+            while (!usedValue) {
+                waitingValue.await();
+            }
+
+            usedValue = false;
+            listValues.add(v);
+            notEmpty.signal();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            lock.unlock();
+        }
     }
 
-    public void out(T v) {
-        try{
-            rChan.out(v);
-        }catch (Exception e){
+    public T in() {
+        lock.lock();
+        try {
+            // Notify IN observers
+            notifyObservers(observersIn);
+
+            while (usedValue) {
+                notEmpty.await();
+            }
+
+            T value = listValues.remove();
+            usedValue = true;
+            waitingValue.signal();
+            return value;
+        } catch (InterruptedException e) {
             e.printStackTrace();
+            return null;
+        } finally {
+            lock.unlock();
         }
     }
-    
-    public T in() {
-        try{
-            return rChan.in();
-        }catch (Exception e){
-            e.printStackTrace();
+
+    private void notifyObservers(ArrayList<Observer> observers) {
+        Iterator<Observer> iterator = observers.iterator();
+        while (iterator.hasNext()) {
+            Observer observer = iterator.next();
+            observer.update();
+            iterator.remove();
         }
-        return null;
     }
 
     public String getName() {
         return name;
     }
 
-    public void observe(Direction direction, Observer observer) {
-        try{
-            rChan.observe(direction, observer);
-        }
-        catch (Exception e){
-            e.printStackTrace();
+    public void observe(Direction dir, Observer observer) {
+        if (dir == Direction.In) {
+            observersIn.add(observer);
+        } else {
+            observersOut.add(observer);
         }
     }
 }

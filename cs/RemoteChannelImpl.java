@@ -1,121 +1,44 @@
 package go.cs;
 
+import go.Channel;
 import go.Direction;
 import go.Observer;
-
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
-public class RemoteChannelImpl<T> extends UnicastRemoteObject implements RemoteChannel<T>{
+public class RemoteChannelImpl<T> extends UnicastRemoteObject implements RemoteChannel<T> {
+    private final Channel<T> channel;
 
-    final String name;
-    LinkedList<T> listValues = new LinkedList<>();
-    // Attributes for concurrency
-    private boolean usedValue = true;
-    final Lock lock = new ReentrantLock();
-    final Condition notEmpty = lock.newCondition();
-    final Condition waitingValue = lock.newCondition();
-
-    // List of observers
-    private final ArrayList<Observer> observersIn = new ArrayList<>();
-    private final ArrayList<Observer> observersOut = new ArrayList<>();
-
-    Channel chan;
-
-    protected RemoteChannelImpl(String name, Channel c) throws RemoteException {
-        super();
-        this.chan = c;
-        this.name = name;
-    }
-
-    protected RemoteChannelImpl(String name) throws RemoteException {
-        super();
-        this.name = name;
-    }
-    @Override
-    public String getName() throws RemoteException {
-        return name;
-    }
-
-    @Override
-    public T in() throws RemoteException {
-        System.out.println("RC " + getName() + " - IN OPERATION START");
-        lock.lock();
-        try {
-            // Notify IN observers
-            notifyObservers(observersIn);
-
-            while (usedValue) {
-                notEmpty.await();
-            }
-
-            T value = listValues.remove();
-            usedValue = true;
-            waitingValue.signal();
-            System.out.println("RC " + getName() + " - IN OPERATION DONE");
-            return value;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-            return null;
-        } finally {
-            lock.unlock();
-        }
+    public RemoteChannelImpl(Channel<T> channel) throws RemoteException {
+        this.channel = channel;
     }
 
     @Override
     public void out(T v) throws RemoteException {
-        lock.lock();
-        System.out.println("RC " + getName() + " - OUT OPERATION START");
-        try {
-            // Notify OUT observers
-            notifyObservers(observersOut);
-
-            while (!usedValue) {
-                waitingValue.await();
-            }
-
-            usedValue = false;
-            listValues.add(v);
-            notEmpty.signal();
-            System.out.println("RC " + getName() + " - OUT OPERATION DONE");
-
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    private void notifyObservers(ArrayList<Observer> observers) {
-        try {
-            System.out.println("RC " + getName() + " - NOTIFYING OBSERVERS");
-        } catch (RemoteException e) {
-            throw new RuntimeException(e);
-        }
-        Iterator<Observer> iterator = observers.iterator();
-        while (iterator.hasNext()) {
-            Observer observer = iterator.next();
-            observer.update();
-            iterator.remove();
-        }
+        channel.out(v);
     }
 
     @Override
-    public void observe(Direction dir, Observer observer) throws RemoteException {
-        if (dir == Direction.In) {
-            System.out.println("RC " + getName() + " - IN OBSERVER ADDED");
-            observersIn.add(observer);
-        } else {
-            observersOut.add(observer);
-            System.out.println("RC " + getName() + " - OUT OBSERVER ADDED ");
+    public T in() throws RemoteException {
+        return channel.in();
+    }
 
-        }
+    @Override
+    public String getName() throws RemoteException {
+        return channel.getName();
+    }
 
+    @Override
+    public void observe(Direction direction, RemoteObserver observer) throws RemoteException {
+        channel.observe(direction, new Observer() {
+            @Override
+            public void update() {
+                try {
+                    observer.update();
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 }
