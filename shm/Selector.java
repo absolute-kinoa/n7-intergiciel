@@ -7,16 +7,12 @@ import go.Observer;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.Semaphore;
 
 public class Selector implements go.Selector {
 
     // Attributs pour la concurrence
-    static final Lock lock = new ReentrantLock();
-    static final Condition ChanIsAvailable = lock.newCondition();
-    private static boolean ChanAvailable = false;
+    private static Semaphore sem = new Semaphore(0);
 
     // List of channels that you want to listen on
     HashMap<Channel, Direction> channels = new HashMap<Channel, Direction>();
@@ -31,13 +27,12 @@ public class Selector implements go.Selector {
         }
 
         public void update() {
-            lock.lock();
             System.out.println("> OBS: Un in() est là");
             availableChannels.add(itsChan);
-            ChanAvailable = true;
             System.out.println("> OBS: ADDING " + itsChan.getName() + " to available list.");
-            ChanIsAvailable.signal();
-            lock.unlock();
+            if (sem.availablePermits() == 0) {
+                sem.release();
+            }
         }
     }
 
@@ -52,23 +47,17 @@ public class Selector implements go.Selector {
     }
 
     public Channel select() {
-        lock.lock();
         try{
             System.out.println("> SELECTOR: WAITING FOR AVAILABILITY");
-            while(!ChanAvailable)
-                ChanIsAvailable.await();
-            ChanAvailable = false;
+            sem.acquire();
             Channel chan = availableChannels.remove();
             Direction dir = Direction.inverse(channels.get(chan));
             chan.observe(dir, new Observateur(chan));
             System.out.println("> SELECTOR: CHAN " + chan.getName() + " IS AVAILABLE !!");
             return chan;
         } catch (InterruptedException e) {
-            e.printStackTrace();
-        } finally {
-            lock.unlock();
+            throw new RuntimeException(e);
         }
-        return null;
     }
 
 }
