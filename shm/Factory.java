@@ -8,25 +8,13 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static go.shm.Selector.lock;
 
 public class Factory implements go.Factory {
     private final Map<String, go.Channel<?>> channelsMap = new HashMap<>();
 
     /** Création ou accès à un canal existant. */
     public <T> go.Channel<T> newChannel(String name) {
-        lock.lock();
-        try {
-            if (channelsMap.containsKey(name)) {
-                return (go.Channel<T>) channelsMap.get(name);
-            } else {
-                go.Channel<T> newChannel = new go.shm.Channel<>(name);
-                channelsMap.put(name, newChannel);
-                return newChannel;
-            }
-        } finally {
-            lock.unlock();
-        }
+        return new go.shm.Channel<T>(name);
     }
 
     /** Spécifie quels sont les canaux écoutés et la direction pour chacun. */
