@@ -1,14 +1,14 @@
-package go.test;
+package go.test.shm;
 
 import go.Channel;
 import go.Factory;
 
 /** Un unique in/out, commençant par in */
-// On lance 3 in/out à la suite
-public class TestShmX5 {
+// On lance le thread in en premier
+public class TestShmX2 {
 
     private static void quit(String msg) {
-        System.out.println("TestShmX5: " + msg);
+        System.out.println("TestShmX2: " + msg);
         System.exit(msg.equals("ok") ? 0 : 1);
     }
 
@@ -20,25 +20,18 @@ public class TestShmX5 {
 
         new Thread(() -> {
             try { Thread.sleep(2000);  } catch (InterruptedException e) { }
-            quit("ok (waiting for a new in operation)");
+            quit("KO (deadlock)");
         }).start();
 
 
         new Thread(() -> {
             int v = c.in();
-            v=c.in();
+            quit(v == 4 ? "ok" : "KO");
         }).start();
 
         new Thread(() -> {
+            try { Thread.sleep(100);  } catch (InterruptedException e) { }
             c.out(4);
-        }).start();
-
-        new Thread(() -> {
-            c.out(2);
-        }).start();
-
-        new Thread(() -> {
-            c.out(13);
         }).start();
 
 

@@ -2,13 +2,12 @@ package go.test.cs;
 
 import go.cs.RemoteChannel;
 import go.cs.RemoteFactoryInterface;
-
 import java.rmi.Naming;
 
-public class ClientA {
+public class TestCS_3_A {
 
     private static void quit(String msg) {
-        System.out.println("TestCS20a: " + msg);
+        System.out.println("TestCS_3_A: " + msg);
         System.exit(msg.equals("ok") ? 0 : 1);
     }
 
@@ -18,21 +17,23 @@ public class ClientA {
 
             RemoteChannel<String> remoteChannel = remoteFactory.newChannel("testChannel");
 
-            // Sending a message
+            // Sending multiple "in" and "out" operations
             new Thread(() -> {
                 try {
-                    remoteChannel.out("Hello, World!");
+                    for (int i = 0; i < 5; i++) {
+                        if (i % 2 == 0) {
+                            remoteChannel.out("Message " + (i + 1));
+                        } else {
+                            String message = remoteChannel.in();
+                            System.out.println("Received: " + message);
+                        }
+                        Thread.sleep(1000);  // Simulate delay between operations
+                    }
+                    quit("ok");
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }).start();
-
-            new Thread(() -> {
-                try { Thread.sleep(5000);  } catch (InterruptedException e) { }
-                quit("KO (deadlock)");
-            }).start();
-
-            quit("ok");
 
         } catch (Exception e) {
             e.printStackTrace();
