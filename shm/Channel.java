@@ -6,9 +6,7 @@ import go.Observer;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.Semaphore;
 
 public class Channel<T> implements go.Channel<T> {
 
@@ -16,10 +14,8 @@ public class Channel<T> implements go.Channel<T> {
     LinkedList<T> listValues = new LinkedList<>();
 
     // Attributes for concurrency
-    private boolean usedValue = true;
-    final Lock lock = new ReentrantLock();
-    final Condition notEmpty = lock.newCondition();
-    final Condition waitingValue = lock.newCondition();
+    private boolean reading = false, writing = false;
+    private Semaphore sIn = new Semaphore(0), sOut = new Semaphore(0);
 
     // List of observers
     private final ArrayList<Observer> observersIn = new ArrayList<>();
@@ -30,45 +26,34 @@ public class Channel<T> implements go.Channel<T> {
     }
 
     public void out(T v) {
-        lock.lock();
+        writing = true;
+        // Notify OUT observers
+        notifyObservers(observersOut);
+        listValues.add(v);
         try {
-            // Notify OUT observers
-            notifyObservers(observersOut);
-
-            while (!usedValue) {
-                waitingValue.await();
-            }
-
-            usedValue = false;
-            listValues.add(v);
-            notEmpty.signal();
-        } catch (InterruptedException e) {
+            sOut.release();
+            sIn.acquire();
+        } catch (Exception e) {
             e.printStackTrace();
-        } finally {
-            lock.unlock();
         }
+        writing = false;
+
     }
 
     public T in() {
-        lock.lock();
+        reading = true;
+        notifyObservers(observersIn);
         try {
-            // Notify IN observers
-            notifyObservers(observersIn);
-
-            while (usedValue) {
-                notEmpty.await();
-            }
-
-            T value = listValues.remove();
-            usedValue = true;
-            waitingValue.signal();
-            return value;
+            sOut.acquire();
         } catch (InterruptedException e) {
-            e.printStackTrace();
-            return null;
-        } finally {
-            lock.unlock();
+            Thread.currentThread().interrupt();
         }
+        sIn.release();
+        reading = false;
+        T value = listValues.remove();
+        return value;
+        // Notify IN observers
+
     }
 
     private void notifyObservers(ArrayList<Observer> observers) {

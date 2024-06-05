@@ -33,9 +33,11 @@ public class Factory implements go.Factory {
     public Selector newSelector(Map<Channel, Direction> channels) {
         try {
             return new go.cs.Selector(channels);
-        } catch (RemoteException e) {
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+        return null;
+
     }
 
     @Override

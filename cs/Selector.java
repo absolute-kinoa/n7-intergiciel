@@ -3,70 +3,61 @@ package go.cs;
 import go.Direction;
 import go.Channel;
 import go.Observer;
-import java.rmi.RemoteException;
-import java.rmi.server.UnicastRemoteObject;
+
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.Semaphore;
 
-public class Selector extends UnicastRemoteObject implements go.Selector {
-    static final Lock lock = new ReentrantLock();
-    static final Condition ChanIsAvailable = lock.newCondition();
-    private static boolean ChanAvailable = false;
-    private final HashMap<Channel, Direction> channels = new HashMap<>();
-    static final LinkedList<Channel> availableChannels = new LinkedList<>();
+public class Selector implements go.Selector {
 
-    static class Observateur extends UnicastRemoteObject implements Observer {
+    // Attributs pour la concurrence
+    private static Semaphore sem = new Semaphore(0);
+
+    // List of channels that you want to listen on
+    HashMap<Channel, Direction> channels = new HashMap<Channel, Direction>();
+    // Channels that are available
+    static LinkedList<Channel> availableChannels = new LinkedList<>();
+
+    static class Observateur implements Observer {
         Channel itsChan;
 
-        public Observateur(Channel c) throws RemoteException {
-            super();
+        public Observateur(Channel c){
             itsChan = c;
         }
 
-        @Override
         public void update() {
-            lock.lock();
-            try {
-                availableChannels.add(itsChan);
-                ChanAvailable = true;
-                ChanIsAvailable.signal();
-            } finally {
-                lock.unlock();
+            System.out.println("> OBS: Un in() est là");
+            availableChannels.add(itsChan);
+            System.out.println("> OBS: ADDING " + itsChan.getName() + " to available list.");
+            if (sem.availablePermits() == 0) {
+                sem.release();
             }
         }
     }
 
-    public Selector(Map<Channel, Direction> channels) throws RemoteException {
-        super();
-        this.channels.putAll(channels);
+    public Selector(Map<Channel, Direction> channels) {
+        this.channels = new HashMap<>(channels);
+        Direction dir;
         for (Channel chan : channels.keySet()) {
-            Direction dir = Direction.inverse(channels.get(chan));
+            dir = Direction.inverse(channels.get(chan));
+            System.out.println("Clé : " + chan.getName() + " attend Valeur : " + Direction.inverse(dir));
             chan.observe(dir, new Observateur(chan));
         }
     }
 
-    @Override
     public Channel select() {
-        lock.lock();
-        try {
-            while (!ChanAvailable) {
-                ChanIsAvailable.await();
-            }
-            ChanAvailable = false;
+        try{
+            System.out.println("> SELECTOR: WAITING FOR AVAILABILITY");
+            sem.acquire();
             Channel chan = availableChannels.remove();
             Direction dir = Direction.inverse(channels.get(chan));
             chan.observe(dir, new Observateur(chan));
+            System.out.println("> SELECTOR: CHAN " + chan.getName() + " IS AVAILABLE !!");
             return chan;
-        } catch (InterruptedException | RemoteException e) {
-            Thread.currentThread().interrupt();
-            e.printStackTrace();
-        } finally {
-            lock.unlock();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
-        return null;
     }
+
 }
