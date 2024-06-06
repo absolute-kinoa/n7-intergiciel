@@ -26,7 +26,6 @@ public class Channel<T> implements go.Channel<T> {
     }
 
     public void out(T v) {
-        writing = true;
         // Notify OUT observers
         notifyObservers(observersOut);
         listValues.add(v);
@@ -36,12 +35,10 @@ public class Channel<T> implements go.Channel<T> {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        writing = false;
 
     }
 
     public T in() {
-        reading = true;
         notifyObservers(observersIn);
         try {
             sOut.acquire();
@@ -49,7 +46,6 @@ public class Channel<T> implements go.Channel<T> {
             Thread.currentThread().interrupt();
         }
         sIn.release();
-        reading = false;
         T value = listValues.remove();
         return value;
         // Notify IN observers
